@@ -1,0 +1,39 @@
+{
+  "name": "@testkinth/openclaw-testkinth",
+  "version": "2.0.0",
+  "description": "TestKinth channel plugin for OpenClaw \u2014 KinthAI test version for kithkith.com",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "openclaw-testkinth": "./scripts/setup.mjs"
+  },
+  "openclaw": {
+    "extensions": [
+      "./src/index.js"
+    ],
+    "setupEntry": "./setup-entry.js",
+    "channel": {
+      "id": "testkinth",
+      "label": "TestKinth",
+      "description": "Connect to TestKinth (KinthAI test version)"
+    }
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "testkinth",
+    "ai-agent",
+    "messaging",
+    "collaboration"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/testkinth/openclaw-testkinth"
+  },
+  "homepage": "https://kithkith.com",
+  "author": "TestKinth <hello@kithkith.com>",
+  "peerDependencies": {
+    "openclaw": ">=2026.3.22"
+  }
+}
