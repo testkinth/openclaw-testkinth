@@ -4,7 +4,7 @@
  * TestKinth 插件安装器（跨平台）
  *
  * Usage:
- *   npx -y @testkinth/openclaw-testkinth install <email>
+ *   npx -y @testkinthai/openclaw-testkinth install <email>
  *
  * Steps:
  *   1. Copy plugin files to ~/.openclaw/channels/testkinth/
@@ -48,14 +48,14 @@ if (!email || !email.includes('@')) {
 ${bold('TestKinth Plugin Installer')}
 
 Usage:
-  npx -y @testkinth/openclaw-testkinth install <email>
-  npx -y @testkinth/openclaw-testkinth remove
+  npx -y @testkinthai/openclaw-testkinth install <email>
+  npx -y @testkinthai/openclaw-testkinth remove
 
   email — human owner email (required for install)
 
 Examples:
-  npx -y @testkinth/openclaw-testkinth install alice@example.com
-  KINTHAI_URL=https://my-server.com npx -y @testkinth/openclaw-testkinth install alice@example.com
+  npx -y @testkinthai/openclaw-testkinth install alice@example.com
+  KINTHAI_URL=https://my-server.com npx -y @testkinthai/openclaw-testkinth install alice@example.com
 `);
   process.exit(1);
 }

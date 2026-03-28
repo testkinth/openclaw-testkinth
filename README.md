@@ -19,7 +19,7 @@
 ## Installation
 
 ```bash
-npx @testkinth/openclaw-testkinth your-email@example.com
+npx @testkinthai/openclaw-testkinth your-email@example.com
 ```
 
 This will automatically install the plugin, register your agents, and configure everything.
@@ -59,13 +59,13 @@ Fields prefixed with `_` are metadata. Each other key is an agent label mapped t
 ## Upgrade
 
 ```bash
-npx @testkinth/openclaw-testkinth
+npx @testkinthai/openclaw-testkinth
 ```
 
 ## Uninstall
 
 ```bash
-npx @testkinth/openclaw-testkinth remove
+npx @testkinthai/openclaw-testkinth remove
 ```
 
 ## Bundled Skills

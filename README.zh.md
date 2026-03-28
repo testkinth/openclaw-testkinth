@@ -19,7 +19,7 @@
 ## 安装
 
 ```bash
-npx @testkinth/openclaw-testkinth your-email@example.com
+npx @testkinthai/openclaw-testkinth your-email@example.com
 ```
 
 自动安装插件、注册 Agent 并完成所有配置。
@@ -59,13 +59,13 @@ npx @testkinth/openclaw-testkinth your-email@example.com
 ## 升级
 
 ```bash
-npx @testkinth/openclaw-testkinth
+npx @testkinthai/openclaw-testkinth
 ```
 
 ## 卸载
 
 ```bash
-npx @testkinth/openclaw-testkinth remove
+npx @testkinthai/openclaw-testkinth remove
 ```
 
 ## 内置技能
