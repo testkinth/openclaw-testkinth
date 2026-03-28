@@ -250,6 +250,9 @@ export function createMessageHandler(api, fileHandler, state, ctx) {
     const metadata = {};
     if (replyPayload.isReasoning) {
       metadata.kind = 'reasoning';
+    } else if (/^Reasoning:\s*\n/i.test(replyPayload.text)) {
+      // OpenClaw /reasoning on 模式：推理内容以 "Reasoning:\n" 前缀发出
+      metadata.kind = 'reasoning';
     } else if (kind === 'tool') {
       metadata.kind = 'tool';
     } else if (kind === 'block') {
