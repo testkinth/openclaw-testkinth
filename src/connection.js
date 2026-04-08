@@ -1,10 +1,155 @@
 /**
  * WebSocket connection lifecycle: connect, reconnect, event dispatch.
  * WebSocket 连接生命周期：连接、重连、事件分发。
+ *
+ * v2.2.0: Dispatch queue + debounce batching for group chat scalability.
+ *   - Sliding window semaphore: limits concurrent AI dispatches (default 4)
+ *   - Per-conversation debounce: accumulates rapid messages, flushes as batch
  */
+
+// Module-level logger — set by the first createConnection call
+// 模块级日志引用 — 由首个 createConnection 调用设置
+let _log = null;
+
+// ── Per-conversation dispatch state ──────────────────────────────────────────
+// 每个 conversation 独立的队列、冻结、等人类消息状态
+// 不同群互不影响
+const MAX_CONCURRENT_PER_CONV = 2;     // 每个对话同时处理的 dispatch 数
+const QUEUE_FREEZE_THRESHOLD = 8;      // queue > 8 → freeze
+const QUEUE_THAW_THRESHOLD = 1;        // queue ≤ 1 → thaw
+const DEBOUNCE_MS = 3000;              // 3s quiet → flush
+const MAX_WAIT_MS = 15000;             // force flush after 15s
+const MAX_BATCH = 20;                  // flush immediately if batch reaches this
+
+// Map<convId, { queue[], active, frozen, waitingForHuman, pending{events[], debounceTimer, forceTimer, flushFn} }>
+const convStates = new Map();
+
+function getConvState(convId) {
+  if (!convStates.has(convId)) {
+    convStates.set(convId, {
+      queue: [],
+      active: 0,
+      frozen: false,
+      waitingForHuman: false,
+      pending: null, // debounce batch
+    });
+  }
+  return convStates.get(convId);
+}
+
+function enqueueDispatch(convId, fn) {
+  const s = getConvState(convId);
+  return new Promise((resolve, reject) => {
+    const run = async () => {
+      s.active++;
+      try { resolve(await fn()); }
+      catch (e) { reject(e); }
+      finally {
+        s.active--;
+        if (s.queue.length > 0) {
+          _log?.debug?.(`[KK-Q] Dispatch next — conv=${convId} queue=${s.queue.length} active=${s.active}`);
+          s.queue.shift()();
+        }
+        checkThaw(convId);
+      }
+    };
+    if (s.active < MAX_CONCURRENT_PER_CONV) {
+      run();
+    } else {
+      s.queue.push(run);
+      _log?.info?.(`[KK-Q] Dispatch queued — conv=${convId} queue=${s.queue.length} active=${s.active}`);
+      checkFreeze(convId);
+    }
+  });
+}
+
+function checkFreeze(convId) {
+  const s = getConvState(convId);
+  if (!s.frozen && s.queue.length > QUEUE_FREEZE_THRESHOLD) {
+    s.frozen = true;
+    _log?.warn?.(
+      `[KK-Q] ⚠ FROZEN — conv=${convId} queue=${s.queue.length} active=${s.active}. ` +
+      `New messages will accumulate until thaw.`,
+    );
+  }
+}
+
+function checkThaw(convId) {
+  const s = getConvState(convId);
+  if (!s.frozen || s.queue.length > QUEUE_THAW_THRESHOLD) return;
+
+  s.frozen = false;
+  s.waitingForHuman = true;
+  _log?.warn?.(
+    `[KK-Q] ✓ THAWED — conv=${convId} queue=${s.queue.length} active=${s.active}. ` +
+    `Flushing pending, then waiting for human message.`,
+  );
+  // Flush pending batch accumulated during freeze
+  const p = s.pending;
+  if (p && p.events.length > 0 && p.flushFn) {
+    clearTimeout(p.debounceTimer);
+    clearTimeout(p.forceTimer);
+    const events = p.events;
+    const fn = p.flushFn;
+    s.pending = null;
+    fn(events);
+  }
+}
+
+function addToPending(convId, event, flushFn) {
+  const s = getConvState(convId);
+  if (!s.pending) {
+    s.pending = { events: [], debounceTimer: null, forceTimer: null, flushFn };
+  }
+  const p = s.pending;
+  p.events.push(event);
+  p.flushFn = flushFn;
+
+  // Frozen → accumulate only, no flush
+  if (s.frozen) {
+    clearTimeout(p.debounceTimer);
+    clearTimeout(p.forceTimer);
+    _log?.debug?.(`[KK-Q] Frozen accumulate — conv=${convId} pending=${p.events.length}`);
+    return;
+  }
+
+  // Reset debounce timer
+  clearTimeout(p.debounceTimer);
+  p.debounceTimer = setTimeout(() => flushBatch(convId, flushFn), DEBOUNCE_MS);
+
+  // Set force timer if not already set
+  if (!p.forceTimer) {
+    p.forceTimer = setTimeout(() => flushBatch(convId, flushFn), MAX_WAIT_MS);
+  }
+
+  // Immediate flush if batch is full
+  if (p.events.length >= MAX_BATCH) {
+    clearTimeout(p.debounceTimer);
+    flushBatch(convId, flushFn);
+  }
+}
+
+function flushBatch(convId, flushFn) {
+  const s = getConvState(convId);
+  const p = s.pending;
+  if (!p || p.events.length === 0) {
+    s.pending = null;
+    return;
+  }
+  clearTimeout(p.debounceTimer);
+  clearTimeout(p.forceTimer);
+  const events = p.events;
+  s.pending = null;
+  _log?.info?.(
+    `[KK-Q] Debounce flush — conv=${convId} batch=${events.length} ` +
+    `queue=${s.queue.length} active=${s.active}`,
+  );
+  flushFn(events);
+}
 
 export function createConnection(api, state, messageHandler, ctx) {
   const log = ctx.log;
+  if (!_log) _log = log; // 设置模块级日志
   let ws = null;
   let reconnectTimer = null;
   let pingTimer = null;
@@ -109,6 +254,13 @@ export function createConnection(api, state, messageHandler, ctx) {
         return;
       }
 
+      // role.updated → invalidate cached role context
+      if (event.event === 'role.updated' && event.conversation_id) {
+        import('./index.js').then(m => m.invalidateRoleContext(event.conversation_id)).catch(() => {});
+        log?.info?.(`[KK-I027] Role context invalidated — conv=${event.conversation_id}`);
+        return;
+      }
+
       if (event.event !== 'message.new') return;
 
       // Deduplicate — skip if same message_id was recently processed
@@ -125,14 +277,51 @@ export function createConnection(api, state, messageHandler, ctx) {
 
       if (!event.trigger_agent) return;
 
-      try {
-        await messageHandler.handleMessageEvent(event);
-      } catch (err) {
-        log?.error?.(
-          `[KK-E006] handleMessageEvent uncaught error — conv=${event.conversation_id} ` +
-          `msg=${event.message_id}: ${err.message}\n${err.stack || ''}`,
-        );
+      const convId = event.conversation_id;
+      // Per-agent per-conversation key — each agent has its own independent queue
+      // 每个 agent 在每个对话中有独立的队列状态（同一进程共享模块变量）
+      const agentTag = state.kithUserId || api.token.slice(-8);
+      const stateKey = `${agentTag}:${convId}`;
+      const cs = getConvState(stateKey);
+
+      // Post-thaw: block agent messages until a human speaks
+      // 解冻后：跳过 agent 消息，等人类发消息才恢复循环
+      if (cs.waitingForHuman) {
+        if (event.sender_type === 'human') {
+          cs.waitingForHuman = false;
+          log?.info?.(`[KK-Q] ✓ Human message received — agent=${agentTag} conv=${convId}, resuming.`);
+        } else {
+          log?.debug?.(
+            `[KK-Q] Post-thaw skip — agent=${agentTag} conv=${convId} ` +
+            `msg=${event.message_id} sender_type=${event.sender_type}`,
+          );
+          return;
+        }
       }
+
+      // Debounce: accumulate per conversation, flush after quiet period
+      // 按 conversation 积攒，静默后批量 flush
+      addToPending(stateKey, event, (batchedEvents) => {
+        // Enqueue the batch into the per-agent per-conversation dispatch queue
+        enqueueDispatch(stateKey, async () => {
+          log?.info?.(
+            `[KK-I026] Dispatch start — agent=${agentTag} conv=${convId} batch=${batchedEvents.length} ` +
+            `queue=${cs.queue.length} active=${cs.active}`,
+          );
+          try {
+            if (batchedEvents.length === 1) {
+              await messageHandler.handleMessageEvent(batchedEvents[0]);
+            } else {
+              await messageHandler.handleMessageEvent(batchedEvents[0], batchedEvents);
+            }
+          } catch (err) {
+            log?.error?.(
+              `[KK-E006] handleMessageEvent uncaught error — conv=${convId} ` +
+              `batch=${batchedEvents.length}: ${err.message}\n${err.stack || ''}`,
+            );
+          }
+        }).catch(() => {}); // errors already logged above
+      });
     };
 
     ws.onclose = (closeEvent) => {
@@ -160,7 +349,7 @@ export function createConnection(api, state, messageHandler, ctx) {
     clearTimeout(reconnectTimer);
     clearInterval(pingTimer);
     ws?.close();
-    log?.info?.('[KK-I016] TestKinth channel stopped (abortSignal)');
+    log?.info?.('[KK-I016] KinthAI channel stopped (abortSignal)');
   }
 
   return { start, stop };

@@ -1,6 +1,6 @@
 /**
- * TestKinth channel plugin definition (KinthAI test version).
- * TestKinth 频道插件定义（KinthAI 测试版）。
+ * KinthAI channel plugin definition.
+ * KinthAI 频道插件定义。
  */
 
 import { createPluginRuntimeStore } from 'openclaw/plugin-sdk/runtime-store';
@@ -17,8 +17,12 @@ import { kinthaiPluginBase } from './plugin-base.js';
 const __dirname = import.meta.dirname ?? path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.resolve(__dirname, '..');
 
-const runtimeStore = createPluginRuntimeStore('testkinth: runtime not initialized');
+const runtimeStore = createPluginRuntimeStore('kinthai: runtime not initialized');
 const { getRuntime, setRuntime } = runtimeStore;
+
+// Agent API instances + identity — shared with before_prompt_build hook
+// agentId → { api, selfPublicId, selfUserId }
+export const agentRegistry = new Map();
 
 const kinthaiPlugin = {
   ...kinthaiPluginBase,
@@ -32,7 +36,7 @@ const kinthaiPlugin = {
       if (!account.url) {
         ctx.log?.error?.(
           '[KK-E001] Config invalid: url missing — channel will not start. ' +
-          'Check channels.testkinth in openclaw.json.',
+          'Check channels.kinthai in openclaw.json.',
         );
         return;
       }
@@ -40,7 +44,7 @@ const kinthaiPlugin = {
       // Disabled mode: skip agent connections, agents will appear offline (red)
       // 禁用模式：跳过 agent 连接，agent 将显示为离线（红点）
       if (account.enabled === false) {
-        ctx.log?.info?.('[KK-I022] TestKinth channel disabled — agents will not connect');
+        ctx.log?.info?.('[KK-I022] KinthAI channel disabled — agents will not connect');
         // Wait for abort signal (keep plugin alive for potential re-enable)
         await new Promise((resolve) => {
           ctx.abortSignal.addEventListener('abort', resolve);
@@ -114,6 +118,9 @@ const kinthaiPlugin = {
           lastPong: null,
         };
 
+        // Register for before_prompt_build hook
+        agentRegistry.set(state.agentId, { api, selfPublicId: selfUserId, selfUserId: kithUserId });
+
         const fileHandler = createFileHandler(api, ctx.log);
         const messageHandler = createMessageHandler(api, fileHandler, state, ctx);
         const connection = createConnection(api, state, messageHandler, ctx);
@@ -125,7 +132,7 @@ const kinthaiPlugin = {
       // Start all agents
       // 启动所有 agent
       const entries = Object.entries(tokens);
-      ctx.log?.info?.(`[KK-I001] TestKinth channel plugin v${pluginVersion} starting — ${entries.length} agent(s)`);
+      ctx.log?.info?.(`[KK-I001] KinthAI channel plugin v${pluginVersion} starting — ${entries.length} agent(s)`);
       for (const [label, token] of entries) {
         await startAgent(token, label);
       }
