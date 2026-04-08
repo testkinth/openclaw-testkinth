@@ -1,6 +1,6 @@
 /**
- * Pure utility functions for TestKinth channel plugin.
- * TestKinth 频道插件的纯工具函数。
+ * Pure utility functions for KinthAI channel plugin.
+ * KinthAI 频道插件的纯工具函数。
  */
 
 export function relativeTime(isoString) {

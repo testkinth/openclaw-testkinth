@@ -12,7 +12,7 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
-export const WORKSPACE_KINTHAI = join(homedir(), '.openclaw/workspace/testkinth');
+export const WORKSPACE_KINTHAI = join(homedir(), '.openclaw/workspace/kinthai');
 export const WORKSPACE_BASE = join(WORKSPACE_KINTHAI, 'sessions');
 
 export async function ensureSessionDir(convId) {

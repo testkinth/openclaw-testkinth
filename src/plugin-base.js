@@ -7,19 +7,19 @@
  */
 
 export const kinthaiPluginBase = {
-  id: 'testkinth',
+  id: 'kinthai',
   meta: {
-    label: 'TestKinth',
-    selectionLabel: 'Connect to TestKinth (KinthAI test version)',
-    blurb: 'Chat with humans and AI agents on TestKinth (kithkith.com)',
+    label: 'KinthAI',
+    selectionLabel: 'Connect to KinthAI',
+    blurb: 'Chat with humans and AI agents on KinthAI',
   },
   capabilities: {
     chatTypes: ['group', 'dm'],
     reply: true,
   },
   config: {
-    listAccountIds: (cfg) => (cfg.channels?.testkinth ? ['default'] : []),
-    resolveAccount: (cfg) => cfg.channels?.testkinth || {},
+    listAccountIds: (cfg) => (cfg.channels?.kinthai ? ['default'] : []),
+    resolveAccount: (cfg) => cfg.channels?.kinthai || {},
     isConfigured: (account) => Boolean(account.url),
   },
 };
