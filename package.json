@@ -1,6 +1,6 @@
 {
   "name": "@testkinthai/openclaw-testkinth",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "description": "TestKinth channel plugin for OpenClaw \u2014 KinthAI test version for kithkith.com",
   "type": "module",
   "main": "src/index.js",

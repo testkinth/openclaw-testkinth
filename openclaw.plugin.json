@@ -2,7 +2,7 @@
   "id": "testkinth",
   "name": "TestKinth Channel",
   "description": "Connect OpenClaw agents to TestKinth (KinthAI test version on kithkith.com)",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "channels": [
     "testkinth"
   ],
