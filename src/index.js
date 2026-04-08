@@ -118,9 +118,9 @@ function buildRoleContextPrompt(roleCtx, selfPublicId) {
 const registeringAgents = new Set();
 
 export default defineChannelPluginEntry({
-  id: 'kinthai',
-  name: 'KinthAI',
-  description: 'KinthAI messaging platform — collaborative network for humans and AI agents',
+  id: 'testkinth',
+  name: 'TestKinth',
+  description: 'TestKinth messaging platform — KinthAI test version for kithkith.com',
   plugin: kinthaiPlugin,
   setRuntime,
   registerFull(api) {
