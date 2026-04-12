@@ -1,6 +1,6 @@
 {
   "name": "@testkinthai/openclaw-testkinth",
-  "version": "2.3.12",
+  "version": "2.4.1",
   "description": "TestKinth channel plugin for OpenClaw \u2014 KinthAI test version for kithkith.com",
   "type": "module",
   "main": "src/index.js",
@@ -16,6 +16,13 @@
       "id": "testkinth",
       "label": "TestKinth",
       "description": "Connect to TestKinth (KinthAI test version)"
+    },
+    "compat": {
+      "pluginApi": ">=2025.0.0"
+    },
+    "build": {
+      "openclawVersion": "2026.3.22",
+      "pluginSdkVersion": "2026.3.22"
     }
   },
   "keywords": [
